@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="コトフダ：配られた言葉の札だけでお題に答える、1台回しのパーティーゲーム。2〜8人で遊べます。">
 <style>
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0}
@@ -17,6 +16,14 @@ img{max-width:100%}
 <meta property="og:description" content="配られた言葉の札だけで答える、1台回しの大喜利パーティーゲーム。">
 <meta property="og:url" content="https://aka496873-stack.github.io/kotofuda/">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="コトフダ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:image" content="https://aka496873-stack.github.io/kotofuda/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="コトフダ ～配られた言葉で笑わせろ～ スマホ1台・登録なし・無料の大喜利パーティーゲーム">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://aka496873-stack.github.io/kotofuda/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
 <style>
@@ -138,6 +145,7 @@ select,input[type=text]{border:1px solid var(--line);background:var(--sheet);col
 .ans.win{border:2.5px solid var(--accent)}
 .ans.win::after{content:"優勝";position:absolute;right:12px;top:-11px;background:var(--accent);color:var(--accent-ink);font-size:12px;font-weight:700;padding:1px 10px;border-radius:999px}
 .ans .foot{display:flex;justify-content:space-between;align-items:baseline;margin-top:auto;gap:8px}
+.ans .share-btn{align-self:flex-start;font-size:13px;padding:5px 12px;border-width:1px}
 .ans .author{font-weight:700}
 .ans .votes{font-family:var(--f-display);font-size:22px;font-variant-numeric:tabular-nums}
 .ans .votes small{font-family:var(--f-ui);font-size:12px;color:var(--ink-soft)}
@@ -616,6 +624,52 @@ function vote(){
 }
 function tally(){const c=G.players.map(()=>0);G.votes.forEach(v=>c[v]++);return c;}
 
+/* シェア：回答を画像カードにして、共有（スマホ）または保存＋Xの投稿画面（PC）。プレイヤー名は画像に入れない */
+const SITE_URL="https://aka496873-stack.github.io/kotofuda/";
+const SHARE_TAGS="#コトフダ #大喜利";
+const CARD_COL={paper:"#f1efe9",ink:"#22232b",soft:"#62646f",line:"#dcd9d0",
+  e:["#dcf2df","#2f8a52"],n:["#fff6d6","#22232b"],h:["#ebe2fb","#6b47b8"],p:["#f4f3ef","#b9b6ad"],w:["#ffffff","#e2462f"]};
+async function shareCard(a){
+  const DISP='"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif',UI='"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif';
+  try{await Promise.all([document.fonts.load('84px "Dela Gothic One"'),document.fonts.load('700 30px "Zen Kaku Gothic New"')]);}catch(e){}
+  const W=1200,H=675,X=84,R=W-84,cv=document.createElement("canvas");cv.width=W;cv.height=H;
+  const c=cv.getContext("2d"),C=CARD_COL;
+  const rr=(x,y,w,h,r,fill,stroke,lw)=>{c.beginPath();c.roundRect(x,y,w,h,r);if(fill){c.fillStyle=fill;c.fill();}if(stroke){c.strokeStyle=stroke;c.lineWidth=lw||2;c.stroke();}};
+  c.fillStyle=C.paper;c.fillRect(0,0,W,H);rr(32,32,W-64,H-64,26,"#ffffff",C.line,3);
+  c.textBaseline="middle";
+  rr(X,76,R-X,92,14,C.ink);c.fillStyle="#b9b8b3";c.font=`700 26px ${UI}`;c.fillText("お題",X+26,122);
+  let tf=44;c.font=`44px ${DISP}`;while(c.measureText(G.theme).width>R-X-140&&tf>22){tf-=2;c.font=`${tf}px ${DISP}`;}
+  c.fillStyle=C.paper;c.fillText(G.theme,X+106,122);
+  /* 回答：札の切れ目で改行（つなぎ札は前の札にくっつける） */
+  const units=[];a.tiles.forEach(t=>{if(t.tier==="p"&&units.length)units[units.length-1]+=t.w;else units.push(t.w);});
+  const text=units.join("");let lines=null,size=84;
+  const fit=sz=>{c.font=`${sz}px ${DISP}`;return c.measureText.bind(c);};
+  for(size=84;size>=64;size-=4){const m=fit(size);if(m(text).width<=R-X){lines=[text];break;}}
+  if(!lines)for(size=84;size>=48;size-=4){const m=fit(size);let best=null;
+    for(let k=1;k<units.length;k++){const A=units.slice(0,k).join(""),B=units.slice(k).join(""),w=Math.max(m(A).width,m(B).width);if(w<=R-X&&(!best||w<best[0]))best=[w,[A,B]];}
+    if(best){lines=best[1];break;}}
+  if(!lines){size=48;fit(size);lines=[text];}
+  const lh=size*1.3,top=196+(250-lh*lines.length)/2;c.fillStyle=C.ink;c.textBaseline="top";
+  lines.forEach((ln,i)=>c.fillText(ln,X,top+i*lh,R-X));
+  /* 使った札 */
+  c.font=`700 30px ${UI}`;c.textBaseline="middle";let x=X;
+  for(const t of a.tiles){const [bg,bd]=C[t.tier]||C.n,pad=t.tier==="p"?12:18,tw=c.measureText(t.w).width;
+    if(x+tw+pad*2>R)break;rr(x,470,tw+pad*2,54,10,bg,bd,2);c.fillStyle=C.ink;c.fillText(t.w,x+pad,497);x+=tw+pad*2+10;}
+  c.strokeStyle=C.line;c.lineWidth=2;c.beginPath();c.moveTo(X,556);c.lineTo(R,556);c.stroke();
+  c.fillStyle=C.ink;c.font=`40px ${DISP}`;c.fillText("コトフダ",X,598);
+  c.fillStyle=C.soft;c.font=`700 24px ${UI}`;c.fillText("～配られた言葉で笑わせろ～",X+178,600);
+  c.textAlign="right";c.fillText(SITE_URL.replace("https://",""),R,600);c.textAlign="left";
+  const blob=await new Promise(r=>cv.toBlob(r,"image/png"));
+  const msg=`お題「${G.theme}」\n${a.text}\n${SHARE_TAGS}`;
+  const file=new File([blob],"kotofuda.png",{type:"image/png"});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],text:`${msg}\n${SITE_URL}`});return;}catch(e){if(e&&e.name==="AbortError")return;}
+  }
+  const url=URL.createObjectURL(blob),dl=document.createElement("a");dl.href=url;dl.download="kotofuda.png";document.body.appendChild(dl);dl.click();dl.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+  window.open(`https://x.com/intent/post?text=${encodeURIComponent(msg)}&url=${encodeURIComponent(SITE_URL)}`,"_blank","noopener");
+  toast("画像を保存しました。Xの投稿画面に添付してください");
+}
+
 /* 結果（得票数だけを出し、誰が誰に入れたかは残さない） */
 function result(){
   const c=G._last,m=Math.max(...c),win=c.map((v,i)=>v===m?i:-1).filter(i=>i>=0);
@@ -625,7 +679,7 @@ function result(){
       <div class="who">${win.map(i=>esc(name(i))).join("・")}</div><p class="lead">${m}票を集めました</p></div>
     <div class="theme small"><span class="label">お題</span><span class="txt">${esc(G.theme)}</span></div>
     <div class="answers">${ranked.map(a=>card(G.answers[a],G.order.indexOf(a)+1,{cls:c[a]===m?"win":"",showHand:true,
-      extra:`<div class="foot"><span class="author">${esc(name(a))}</span><span class="votes">${c[a]}<small> 票</small></span></div>`})).join("")}</div>
+      extra:`${G.answers[a].text?`<button class="share-btn" type="button" data-share="${a}">この回答を画像でシェア</button>`:""}<div class="foot"><span class="author">${esc(name(a))}</span><span class="votes">${c[a]}<small> 票</small></span></div>`})).join("")}</div>
     <p class="lead">${G.round}回戦が終わりました。通算の優勝回数は、ゲームをやめるときに発表します。</p>
     <div class="row-flex">
       <button class="primary" id="again" type="button">同じメンバーで次のお題へ</button>
@@ -633,6 +687,7 @@ function result(){
       <button id="end" type="button">ゲームをやめる</button>
     </div>
   </section>`;
+  document.querySelectorAll("[data-share]").forEach(b=>b.onclick=async()=>{b.disabled=true;try{await shareCard(G.answers[+b.dataset.share]);}finally{b.disabled=false;}});
   $("again").onclick=()=>{newTheme();go("odai");};
   $("members").onclick=()=>go("setup");
   $("end").onclick=()=>go("finale");
